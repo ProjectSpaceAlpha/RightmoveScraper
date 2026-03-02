@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.env.local
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Scraper Data & Temp Files
+temp_tasks/
+temp_scrape_*
+*.csv
+
+# Node / Frontend
+node_modules/
+RightmoveScraperWebApp/node_modules/
+RightmoveScraperWebApp/dist/
+RightmoveScraperWebApp/dist-ssr/
+RightmoveScraperWebApp/.env*
+!RightmoveScraperWebApp/.env.example
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbe.db
+ehthumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
