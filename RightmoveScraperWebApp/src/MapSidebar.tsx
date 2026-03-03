@@ -21,6 +21,7 @@ interface MapSidebarProps {
     onFiltersChange: (filters: MapFilters) => void;
     onBack: () => void;
     onShowStats: () => void;
+    onDownload: () => void;
 }
 
 const DAY_PRESETS = [
@@ -50,7 +51,7 @@ const PROPERTY_TYPE_PRESETS = [
 ];
 
 
-export default function MapSidebar({ totalCount, filteredCount, sqftCount, filters, onFiltersChange, onBack, onShowStats }: MapSidebarProps) {
+export default function MapSidebar({ totalCount, filteredCount, sqftCount, filters, onFiltersChange, onBack, onShowStats, onDownload }: MapSidebarProps) {
     const [isTypesCollapsed, setIsTypesCollapsed] = useState(true);
 
     const update = (partial: Partial<MapFilters>) =>
@@ -86,6 +87,13 @@ export default function MapSidebar({ totalCount, filteredCount, sqftCount, filte
                     onClick={(e) => { e.stopPropagation(); onShowStats(); }}
                 >
                     📊 View Market Insights
+                </button>
+                <button
+                    className="insights-trigger-btn"
+                    style={{ marginTop: '8px', background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1', borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                    onClick={(e) => { e.stopPropagation(); onDownload(); }}
+                >
+                    📥 Download Filtered JSON
                 </button>
             </div>
 

@@ -452,6 +452,7 @@ function App() {
             onFiltersChange={setMapFilters}
             onBack={() => setCurrentView('builder')}
             onShowStats={() => setShowStats(true)}
+            onDownload={() => downloadJSON(filteredProperties, 'rightmove_filtered_data.json')}
           />
           <div className="map-wrapper">
             <MapView
@@ -665,22 +666,31 @@ function App() {
       </main>
 
       <footer className="glass-panel output-section">
-        {/* Always show Single URL Section */}
-        <div className="single-output">
-          <div className="output-header">
-            <h2>Generated URL</h2>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <label className="checkbox-label" style={{ background: 'transparent', border: 'none', padding: 0 }}>
-                <input type="checkbox" checked={autoDownload} onChange={e => setAutoDownload(e.target.checked)} />
-                <span style={{ fontSize: '0.85rem' }}>Download data locally</span>
-              </label>
+        {/* Persistent Pipeline Controls */}
+        <div className="output-header" style={{ marginBottom: batchUrls.length > 0 ? '0' : '1.5rem', borderBottom: batchUrls.length > 0 ? 'none' : '1px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: '1.1rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scraper Pipeline</h2>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <label className="checkbox-label" style={{ background: 'transparent', border: 'none', padding: 0 }}>
+              <input type="checkbox" checked={autoDownload} onChange={e => setAutoDownload(e.target.checked)} />
+              <span style={{ fontSize: '0.85rem' }}>Download data locally</span>
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => document.getElementById('file-upload')?.click()}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                📁 Upload JSON
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Single URL Section - Hidden when Batch URLs exist */}
+        {batchUrls.length === 0 && (
+          <div className="single-output" style={{ marginTop: '1rem' }}>
+            <div className="output-header" style={{ borderBottom: 'none', marginBottom: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.3rem' }}>Generated URL</h2>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  📁 Upload JSON
-                </button>
                 <button
                   onClick={() => handleRunScraper([generatedUrl])}
                   disabled={isScraping}
@@ -695,18 +705,20 @@ function App() {
                 </button>
               </div>
             </div>
+            <div className="url-display">
+              {generatedUrl}
+            </div>
           </div>
-          <div className="url-display">
-            {generatedUrl}
-          </div>
-        </div>
+        )}
 
         {/* Optional Batch Outcode Section */}
         {params.locationIdentifier.includes('OUTCODE^') && (
           <div className="batch-output-optional">
-            <div className="batch-divider">
-              <span>OR</span>
-            </div>
+            {batchUrls.length === 0 && (
+              <div className="batch-divider">
+                <span>OR</span>
+              </div>
+            )}
             <div className="output-header">
               <h2 style={{ color: '#60a5fa' }}>Advanced: Batch Outcode Generation</h2>
             </div>
