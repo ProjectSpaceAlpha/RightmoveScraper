@@ -711,6 +711,21 @@ button.copied:hover {
   margin-right: 0 !important;
 }
 
+.recharts-tooltip-wrapper {
+  z-index: 100 !important;
+  pointer-events: auto !important;
+  transition: transform 0.1s ease-out !important;
+}
+
+.custom-scatter-tooltip {
+  pointer-events: auto !important;
+}
+
+.custom-scatter-tooltip a:hover {
+  color: #93c5fd !important;
+  text-decoration: underline !important;
+}
+
 .key-metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;

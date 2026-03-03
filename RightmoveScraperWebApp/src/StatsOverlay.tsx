@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
     ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid,
@@ -12,7 +13,80 @@ interface StatsOverlayProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
+const CustomScatterTooltip = ({ active, payload, formatCurrency, isSticky, onClose }: any) => {
+    if ((active && payload && payload.length) || (isSticky && payload && payload.length)) {
+        const data = payload[0].payload;
+        return (
+            <div className="custom-scatter-tooltip glass-panel" style={{
+                backgroundColor: '#1e293b',
+                border: isSticky ? '2px solid #3b82f6' : '1px solid #475569',
+                borderRadius: '8px',
+                padding: '12px',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4)',
+                pointerEvents: 'auto',
+                position: 'relative',
+                minWidth: '200px'
+            }}>
+                {isSticky && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onClose(); }}
+                        style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: 'none',
+                            color: '#cbd5e1',
+                            cursor: 'pointer',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px'
+                        }}
+                    >
+                        ✕
+                    </button>
+                )}
+                <p style={{ margin: 0, fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px', fontSize: '0.9rem', maxWidth: '170px' }}>
+                    {data.name}
+                </p>
+                <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <p style={{ margin: 0, color: '#94a3b8' }}>Price: <span style={{ color: '#10b981', fontWeight: '600' }}>{formatCurrency(data.y)}</span></p>
+                    <p style={{ margin: 0, color: '#94a3b8' }}>Size: <span style={{ color: '#3b82f6', fontWeight: '600' }}>{data.x.toLocaleString()} ft²</span></p>
+                </div>
+                {data.url && (
+                    <a
+                        href={data.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            display: 'inline-block',
+                            marginTop: '10px',
+                            color: '#60a5fa',
+                            textDecoration: 'none',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            borderTop: '1px solid #334155',
+                            paddingTop: '8px',
+                            width: '100%'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        View on Rightmove →
+                    </a>
+                )}
+            </div>
+        );
+    }
+    return null;
+};
+
 export default function StatsOverlay({ properties, onClose }: StatsOverlayProps) {
+    const [stickyPoint, setStickyPoint] = useState<any>(null);
+    const [hideOutliers, setHideOutliers] = useState(true);
     if (properties.length === 0) {
         return (
             <div className="stats-overlay-backdrop" onClick={onClose}>
@@ -75,13 +149,30 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
     }
 
     // Sq Ft vs Price (Scatter)
-    const scatterData = properties
+    const rawScatterData = properties
         .filter(p => p.sqft && p.price && !isNaN(Number(p.sqft)) && !isNaN(Number(p.price)))
         .map(p => ({
             x: Number(p.sqft),
             y: Number(p.price),
-            name: p.address
+            name: p.address,
+            url: p.url
         }));
+
+    // IQR Outlier Detection
+    const getFilteredScatterData = () => {
+        if (!hideOutliers || rawScatterData.length < 4) return rawScatterData;
+
+        const values = [...rawScatterData].map(d => d.x).sort((a, b) => a - b);
+        const q1 = values[Math.floor(values.length * 0.25)];
+        const q3 = values[Math.floor(values.length * 0.75)];
+        const iqr = q3 - q1;
+        const upperLimit = q3 + (iqr * 1.5);
+        const lowerLimit = Math.max(0, q1 - (iqr * 1.5));
+
+        return rawScatterData.filter(d => d.x >= lowerLimit && d.x <= upperLimit);
+    };
+
+    const scatterData = getFilteredScatterData();
 
     // Days on Market Distribution (Area) - Bucketing
     const daysCounts: Record<string, number> = {
@@ -224,20 +315,68 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
 
                     {/* Price vs Sq Ft Scatter */}
                     <div className="stats-card wide">
-                        <h3>Price vs Square Footage</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0 }}>Price vs Square Footage</h3>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                color: hideOutliers ? '#3b82f6' : '#94a3b8',
+                                background: 'rgba(59, 130, 246, 0.05)',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(59, 130, 246, 0.1)'
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={hideOutliers}
+                                    onChange={(e) => setHideOutliers(e.target.checked)}
+                                    style={{ margin: 0, cursor: 'pointer' }}
+                                />
+                                Hide Outliers
+                            </label>
+                        </div>
                         <div className="chart-container">
                             <ResponsiveContainer width="99%" height={250}>
-                                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                <ScatterChart
+                                    margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                                    onClick={() => setStickyPoint(null)}
+                                >
                                     <CartesianGrid stroke="#334155" />
                                     <XAxis type="number" dataKey="x" name="Sq Ft" unit="ft²" stroke="#94a3b8" />
                                     <YAxis type="number" dataKey="y" name="Price" unit="£" stroke="#94a3b8" tickFormatter={(value) => `£${value / 1000}k`} />
                                     <ZAxis type="number" range={[50, 400]} />
                                     <Tooltip
-                                        cursor={{ strokeDasharray: '3 3' }}
-                                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                        formatter={(value: any, name: string | undefined) => [name === 'Price' ? formatCurrency(value) : value, name || '']}
+                                        cursor={{ strokeDasharray: '3 3', stroke: '#94a3b8' }}
+                                        content={
+                                            <CustomScatterTooltip
+                                                formatCurrency={formatCurrency}
+                                                isSticky={!!stickyPoint}
+                                                onClose={() => setStickyPoint(null)}
+                                            />
+                                        }
+                                        {...(stickyPoint ? {
+                                            active: true,
+                                            payload: [{ payload: stickyPoint }],
+                                            coordinate: { x: stickyPoint.cx, y: stickyPoint.cy }
+                                        } : {})}
+                                        wrapperStyle={{ pointerEvents: 'auto', outline: 'none' }}
+                                        offset={20}
+                                        isAnimationActive={false}
                                     />
-                                    <Scatter name="Properties" data={scatterData} fill="#10b981" />
+                                    <Scatter
+                                        name="Properties"
+                                        data={scatterData}
+                                        fill="#10b981"
+                                        style={{ cursor: 'pointer' }}
+                                        isAnimationActive={false}
+                                        onClick={(data, _, e) => {
+                                            e.stopPropagation();
+                                            setStickyPoint(data);
+                                        }}
+                                    />
                                 </ScatterChart>
                             </ResponsiveContainer>
                         </div>
