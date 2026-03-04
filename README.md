@@ -79,6 +79,16 @@ The application will be available at `http://localhost:5173`.
 
 ---
 
+## 📸 Screenshots
+
+*   **Bulk Search & Outcode Generation**: [View Screenshot](https://imgbox.com/FYQrykP3)
+*   **Interactive Map Results**: [View Screenshot](https://imgbox.com/yU7YwYX6)
+*   **Property Detail Overlays**: [View Screenshot](https://imgbox.com/fMiUYkhZ)
+*   **Market Analytics Dashboard**: [View Screenshot](https://imgbox.com/uwyaIGPX)
+
+---
+
+
 ## 📡 API Endpoints
 
 - `POST /api/scrape/start`: Initiates a background scrape task for a list of URLs.
