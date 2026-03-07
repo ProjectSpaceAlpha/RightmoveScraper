@@ -14,7 +14,7 @@ interface StatsOverlayProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-const CustomScatterTooltip = ({ active, payload, formatCurrency, isSticky, onClose }: any) => {
+const CustomScatterTooltip = ({ active, payload, formatCurrency, isSticky, onClose, colorBy }: any) => {
     if ((active && payload && payload.length) || (isSticky && payload && payload.length)) {
         const data = payload[0].payload;
         return (
@@ -57,6 +57,8 @@ const CustomScatterTooltip = ({ active, payload, formatCurrency, isSticky, onClo
                 <div style={{ fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <p style={{ margin: 0, color: '#94a3b8' }}>Price: <span style={{ color: '#10b981', fontWeight: '600' }}>{formatCurrency(data.y)}</span></p>
                     <p style={{ margin: 0, color: '#94a3b8' }}>Size: <span style={{ color: '#3b82f6', fontWeight: '600' }}>{data.x.toLocaleString()} ft²</span></p>
+                    {colorBy === 'bed' && <p style={{ margin: 0, color: '#94a3b8' }}>Beds: <span style={{ color: '#fcd34d', fontWeight: '600' }}>{data.beds}</span></p>}
+                    {colorBy === 'type' && <p style={{ margin: 0, color: '#94a3b8' }}>Type: <span style={{ color: '#fcd34d', fontWeight: '600' }}>{data.type}</span></p>}
                 </div>
                 {data.url && (
                     <a
@@ -88,6 +90,8 @@ const CustomScatterTooltip = ({ active, payload, formatCurrency, isSticky, onClo
 export default function StatsOverlay({ properties, onClose }: StatsOverlayProps) {
     const [stickyPoint, setStickyPoint] = useState<any>(null);
     const [hideOutliers, setHideOutliers] = useState(true);
+    const [fullscreenChart, setFullscreenChart] = useState<string | null>(null);
+    const [scatterColorBy, setScatterColorBy] = useState<'none' | 'bed' | 'type'>('none');
     if (properties.length === 0) {
         return (
             <div className="stats-overlay-backdrop" onClick={onClose}>
@@ -156,7 +160,9 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
             x: Number(p.sqft),
             y: Number(p.price),
             name: p.address,
-            url: p.url
+            url: p.url,
+            beds: p.bedrooms !== undefined ? String(p.bedrooms) : 'Unknown',
+            type: getNormalizedPropertyType(String(p.type || ''))
         }));
 
     // IQR Outlier Detection
@@ -174,6 +180,10 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
     };
 
     const scatterData = getFilteredScatterData();
+
+    // Calculate dynamic XAxis domain (min sqft rounded down to nearest 50)
+    const minSqft = scatterData.length > 0 ? Math.min(...scatterData.map(d => d.x)) : 0;
+    const roundedMinSqft = Math.max(0, Math.floor(minSqft / 50) * 50);
 
     // Days on Market Distribution (Area) - Bucketing
     const daysCounts: Record<string, number> = {
@@ -200,7 +210,7 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
 
     return (
         <div className="stats-overlay-backdrop" onClick={onClose}>
-            <div className="stats-overlay-content glass-panel" onClick={e => e.stopPropagation()}>
+            <div className={`stats-overlay-content glass-panel ${fullscreenChart ? 'has-fullscreen' : ''}`} onClick={e => e.stopPropagation()}>
                 <header className="stats-header">
                     <div>
                         <h2>Market Insights</h2>
@@ -233,10 +243,15 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                     </div>
 
                     {/* Bedroom Distribution Pie */}
-                    <div className="stats-card">
-                        <h3>Bedroom Distribution</h3>
+                    <div className={`stats-card ${fullscreenChart === 'bed' ? 'fullscreen' : ''}`}>
+                        <div className="chart-header">
+                            <h3>Bedroom Distribution</h3>
+                            <button className="expand-btn" onClick={() => setFullscreenChart(fullscreenChart === 'bed' ? null : 'bed')}>
+                                {fullscreenChart === 'bed' ? '⤓ Minimize' : '⤢ Fullscreen'}
+                            </button>
+                        </div>
                         <div className="chart-container">
-                            <ResponsiveContainer width="99%" height={250}>
+                            <ResponsiveContainer width="99%" height={fullscreenChart === 'bed' ? "100%" : 250}>
                                 <PieChart>
                                     <Pie
                                         data={bedData}
@@ -262,10 +277,15 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                     </div>
 
                     {/* Property Type Pie */}
-                    <div className="stats-card">
-                        <h3>Property Types</h3>
+                    <div className={`stats-card ${fullscreenChart === 'type' ? 'fullscreen' : ''}`}>
+                        <div className="chart-header">
+                            <h3>Property Types</h3>
+                            <button className="expand-btn" onClick={() => setFullscreenChart(fullscreenChart === 'type' ? null : 'type')}>
+                                {fullscreenChart === 'type' ? '⤓ Minimize' : '⤢ Fullscreen'}
+                            </button>
+                        </div>
                         <div className="chart-container">
-                            <ResponsiveContainer width="99%" height={250}>
+                            <ResponsiveContainer width="99%" height={fullscreenChart === 'type' ? "100%" : 250}>
                                 <PieChart>
                                     <Pie
                                         data={typeData}
@@ -290,10 +310,15 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                     </div>
 
                     {/* Days on Market Area */}
-                    <div className="stats-card wide">
-                        <h3>Listing Age (Bucketed)</h3>
+                    <div className={`stats-card wide ${fullscreenChart === 'age' ? 'fullscreen' : ''}`}>
+                        <div className="chart-header">
+                            <h3>Listing Age (Bucketed)</h3>
+                            <button className="expand-btn" onClick={() => setFullscreenChart(fullscreenChart === 'age' ? null : 'age')}>
+                                {fullscreenChart === 'age' ? '⤓ Minimize' : '⤢ Fullscreen'}
+                            </button>
+                        </div>
                         <div className="chart-container">
-                            <ResponsiveContainer width="99%" height={250}>
+                            <ResponsiveContainer width="99%" height={fullscreenChart === 'age' ? "100%" : 250}>
                                 <AreaChart data={daysData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
@@ -315,38 +340,61 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                     </div>
 
                     {/* Price vs Sq Ft Scatter */}
-                    <div className="stats-card wide">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0 }}>Price vs Square Footage</h3>
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer',
-                                color: hideOutliers ? '#3b82f6' : '#94a3b8',
-                                background: 'rgba(59, 130, 246, 0.05)',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(59, 130, 246, 0.1)'
-                            }}>
-                                <input
-                                    type="checkbox"
-                                    checked={hideOutliers}
-                                    onChange={(e) => setHideOutliers(e.target.checked)}
-                                    style={{ margin: 0, cursor: 'pointer' }}
-                                />
-                                Hide Outliers
-                            </label>
+                    <div className={`stats-card wide ${fullscreenChart === 'scatter' ? 'fullscreen' : ''}`}>
+                        <div className="chart-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <h3 style={{ margin: 0 }}>Price vs Square Footage</h3>
+                                <label style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    color: hideOutliers ? '#3b82f6' : '#94a3b8',
+                                    background: 'rgba(59, 130, 246, 0.05)',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid rgba(59, 130, 246, 0.1)'
+                                }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={hideOutliers}
+                                        onChange={(e) => setHideOutliers(e.target.checked)}
+                                        style={{ margin: 0, cursor: 'pointer' }}
+                                    />
+                                    Hide Outliers
+                                </label>
+                                <select 
+                                    className="sidebar-input small" 
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem', width: 'auto', background: 'rgba(15, 23, 42, 0.6)' }}
+                                    value={scatterColorBy}
+                                    onChange={(e) => setScatterColorBy(e.target.value as any)}
+                                >
+                                    <option value="none">Color: None</option>
+                                    <option value="bed">Color: Bedrooms</option>
+                                    <option value="type">Color: Property Type</option>
+                                </select>
+                            </div>
+                            <button className="expand-btn" onClick={() => setFullscreenChart(fullscreenChart === 'scatter' ? null : 'scatter')}>
+                                {fullscreenChart === 'scatter' ? '⤓ Minimize' : '⤢ Fullscreen'}
+                            </button>
                         </div>
                         <div className="chart-container">
-                            <ResponsiveContainer width="99%" height={250}>
+                            <ResponsiveContainer width="99%" height={fullscreenChart === 'scatter' ? "100%" : 250}>
                                 <ScatterChart
                                     margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                                     onClick={() => setStickyPoint(null)}
                                 >
                                     <CartesianGrid stroke="#334155" />
-                                    <XAxis type="number" dataKey="x" name="Sq Ft" unit="ft²" stroke="#94a3b8" />
+                                    <XAxis 
+                                        type="number" 
+                                        dataKey="x" 
+                                        name="Sq Ft" 
+                                        unit="ft²" 
+                                        stroke="#94a3b8" 
+                                        domain={[roundedMinSqft, 'auto']}
+                                        allowDataOverflow={true}
+                                    />
                                     <YAxis type="number" dataKey="y" name="Price" unit="£" stroke="#94a3b8" tickFormatter={(value) => `£${value / 1000}k`} />
                                     <ZAxis type="number" range={[50, 400]} />
                                     <Tooltip
@@ -356,6 +404,7 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                                                 formatCurrency={formatCurrency}
                                                 isSticky={!!stickyPoint}
                                                 onClose={() => setStickyPoint(null)}
+                                                colorBy={scatterColorBy}
                                             />
                                         }
                                         {...(stickyPoint ? {
@@ -367,6 +416,25 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                                         offset={20}
                                         isAnimationActive={false}
                                     />
+                                    {fullscreenChart === 'scatter' && scatterColorBy !== 'none' && (
+                                        <Legend 
+                                            verticalAlign="bottom" 
+                                            height={36}
+                                            content={() => {
+                                                const activeData = scatterColorBy === 'bed' ? bedData : typeData;
+                                                return (
+                                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', paddingTop: '16px' }}>
+                                                        {activeData.map((entry, index) => (
+                                                            <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: COLORS[index % COLORS.length] }} />
+                                                                <span style={{ color: '#f8fafc', fontSize: '12px' }}>{entry.name}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }}
+                                        />
+                                    )}
                                     <Scatter
                                         name="Properties"
                                         data={scatterData}
@@ -377,7 +445,30 @@ export default function StatsOverlay({ properties, onClose }: StatsOverlayProps)
                                             e.stopPropagation();
                                             setStickyPoint(data);
                                         }}
-                                    />
+                                    >
+                                        {scatterData.map((entry, index) => {
+                                            let cellColor = '#10b981'; // default emerald
+
+                                            if (scatterColorBy === 'bed') {
+                                                const bedName = `${entry.beds} Bed`;
+                                                const targetIndex = bedData.findIndex(d => d.name === bedName);
+                                                if (targetIndex !== -1) {
+                                                    cellColor = COLORS[targetIndex % COLORS.length];
+                                                } else {
+                                                    cellColor = '#64748b'; // unknown
+                                                }
+                                            } else if (scatterColorBy === 'type') {
+                                                const targetIndex = typeData.findIndex(d => d.name === entry.type);
+                                                if (targetIndex !== -1) {
+                                                    cellColor = COLORS[targetIndex % COLORS.length];
+                                                } else {
+                                                    cellColor = '#64748b'; // unknown
+                                                }
+                                            }
+
+                                            return <Cell key={`cell-${index}`} fill={cellColor} />;
+                                        })}
+                                    </Scatter>
                                 </ScatterChart>
                             </ResponsiveContainer>
                         </div>
